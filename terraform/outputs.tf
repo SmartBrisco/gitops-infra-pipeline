@@ -5,7 +5,7 @@ output "instance_id" {
 
 output "instance_public_ip" {
   description = "EC2 instance public IP"
-  value       = aws_instance.demo.public_ip
+  value       = aws_instance.default.public_ip
 }
 
 output "instance_state" {
