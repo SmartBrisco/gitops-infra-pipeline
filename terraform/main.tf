@@ -14,8 +14,8 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Data source - get default subnet
-data "aws_subnet" "default" {
+# Data source - get subnet
+data "aws_subnet" "dev" {
   filter {
     name   = "defaultForAz"
     values = ["true"]
@@ -58,7 +58,7 @@ resource "aws_security_group" "temp" {
 resource "aws_instance" "dev" {
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = var.instance_type
-  subnet_id              = data.aws_subnet.default.id
+  subnet_id              = data.aws_subnet.dev.id
   vpc_security_group_ids = [aws_security_group.temp.id]
 
   tags = {
