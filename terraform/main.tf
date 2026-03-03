@@ -14,11 +14,14 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Data source - get subnet
 data "aws_subnet" "dev" {
   filter {
     name   = "defaultForAz"
     values = ["true"]
+  }
+  filter {
+    name   = "availabilityZone"
+    values = ["us-east-1a"]
   }
   filter {
     name   = "vpc-id"
