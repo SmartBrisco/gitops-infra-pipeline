@@ -1,0 +1,110 @@
+name: GitOps Infrastructure Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+        working-directory: terraform
+
+      - name: TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+          
+      - name: Run TFLint
+        run: tflint --init && tflint
+        working-directory: terraform
+
+      - name: Trivy IaC Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: terraform
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          format: table
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
+        working-directory: terraform
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: terraform
+
+      - name: Get Terraform Outputs
+        id: outputs
+        run: |
+          echo "instance_id=$(terraform output -raw instance_id)" >> $GITHUB_OUTPUT
+          echo "public_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
+          echo "instance_state=$(terraform output -raw instance_state)" >> $GITHUB_OUTPUT
+        working-directory: terraform
+
+      - name: Notify Slack - Success
+        if: success()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{
+            "text": "✅ *Infrastructure Deployed Successfully*\n*Instance ID:* ${{ steps.outputs.outputs.instance_id }}\n*Public IP:* ${{ steps.outputs.outputs.public_ip }}\n*Instance State:* ${{ steps.outputs.outputs.instance_state }}\n*Instance Type:* t2.micro\n*Region:* us-east-1\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}"
+          }' \
+          ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
+
+      - name: Notify Slack - Failure
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{
+            "text": "❌ *Infrastructure Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Job:* ${{ github.job }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' \
+          ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+
+      - name: Notify Slack - Audit
+        if: always()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{
+            "text": "📋 *Audit Log*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Branch:* ${{ github.ref_name }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\n*Timestamp:* ${{ github.event.head_commit.timestamp }}"
+          }' \
+          ${{ secrets.SLACK_WEBHOOK_AUDIT }}
