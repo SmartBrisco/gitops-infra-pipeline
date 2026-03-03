@@ -62,7 +62,7 @@ resource "aws_instance" "dev" {
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = var.instance_type
   subnet_id              = data.aws_subnet.dev.id
-  vpc_security_group_ids = [aws_security_group.temp.id]
+  vpc_security_group_ids = [aws_security_group.dev.id]
 
   tags = {
     Name      = "${var.project_name}-instance"

@@ -25,5 +25,5 @@ output "aws_region" {
 
 output "security_group_id" {
   description = "Security group ID"
-  value       = aws_security_group.temp.id
+  value       = aws_security_group.dev.id
 }
