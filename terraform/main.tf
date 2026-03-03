@@ -10,18 +10,18 @@ data "aws_ami" "amazon_linux_2" {
 }
 
 # Data source - get default VPC
-data "aws_vpc" "default" {
+data "aws_vpc" "main" {
   default = true
 }
 
-data "aws_subnets" "default" {
+data "aws_subnets" "main" {
   filter {
     name   = "defaultForAz"
     values = ["true"]
   }
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+    values = [data.aws_vpc.main.id]
   }
 }
 
@@ -29,7 +29,7 @@ data "aws_subnets" "default" {
 resource "aws_security_group" "dev" {
   name        = "${var.project_name}-sg"
   description = "temp security group for gitops pipeline"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = data.aws_vpc.main.id
 
   ingress {
     description = "SSH"
@@ -57,7 +57,7 @@ resource "aws_security_group" "dev" {
 resource "aws_instance" "dev" {
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = var.instance_type
-  subnet_id              = data.aws_subnets.default.ids[0]
+  subnet_id              = data.aws_subnets.main.ids[0]
   vpc_security_group_ids = [aws_security_group.dev.id]
 
   tags = {
