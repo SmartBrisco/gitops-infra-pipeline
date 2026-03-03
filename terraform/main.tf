@@ -14,14 +14,10 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnet" "dev" {
+data "aws_subnets" "default" {
   filter {
     name   = "defaultForAz"
     values = ["true"]
-  }
-  filter {
-    name   = "availabilityZone"
-    values = ["us-east-1a"]
   }
   filter {
     name   = "vpc-id"
