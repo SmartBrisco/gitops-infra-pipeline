@@ -74,11 +74,6 @@ jobs:
         run: terraform apply -auto-approve tfplan
         working-directory: terraform
 
-      - name: Terraform Destroy on Failure
-        if: failure()
-        run: terraform destroy -auto-approve
-        working-directory: terraform
-
       - name: Get Terraform Outputs
         id: outputs
         run: |
