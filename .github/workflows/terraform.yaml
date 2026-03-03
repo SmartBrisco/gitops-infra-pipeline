@@ -26,7 +26,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
           terraform_wrapper: false
@@ -72,6 +72,11 @@ jobs:
       - name: Terraform Apply
         id: apply
         run: terraform apply -auto-approve tfplan
+        working-directory: terraform
+
+      - name: Terraform Destroy on Failure
+        if: failure()
+        run: terraform destroy -auto-approve
         working-directory: terraform
 
       - name: Get Terraform Outputs
