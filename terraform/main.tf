@@ -57,7 +57,7 @@ resource "aws_security_group" "dev" {
 resource "aws_instance" "dev" {
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = var.instance_type
-  subnet_id              = data.aws_subnet.dev.id
+  subnet_id              = data.aws_subnet.default.ids[0]
   vpc_security_group_ids = [aws_security_group.dev.id]
 
   tags = {
