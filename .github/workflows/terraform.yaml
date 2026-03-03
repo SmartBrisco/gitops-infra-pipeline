@@ -26,7 +26,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.7.0
           terraform_wrapper: false
@@ -88,7 +88,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\"✅ *Infrastructure Deployed Successfully*\n*Instance ID:* ${{ steps.outputs.outputs.instance_id }}\n*Public IP:* ${{ steps.outputs.outputs.public_ip }}\n*Region:* us-east-1\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
+          -d "{\"text\":\" *Infrastructure Deployed Successfully*\n*Instance ID:* ${{ steps.outputs.outputs.instance_id }}\n*Public IP:* ${{ steps.outputs.outputs.public_ip }}\n*Region:* us-east-1\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
           "$SLACK_WEBHOOK"
 
       - name: Notify Slack - Failure
@@ -97,7 +97,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\"❌ *Infrastructure Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          -d "{\"text\":\" *Infrastructure Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"
 
       - name: Notify Slack - Audit
@@ -106,5 +106,5 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_AUDIT }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\"📋 *Audit Log*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
+          -d "{\"text\":\" *Audit Log*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"

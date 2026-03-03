@@ -30,7 +30,7 @@ data "aws_subnet" "dev" {
 }
 
 # Security group - SSH and HTTP access
-resource "aws_security_group" "temp" {
+resource "aws_security_group" "dev" {
   name        = "${var.project_name}-sg"
   description = "temp security group for gitops pipeline"
   vpc_id      = data.aws_vpc.default.id
