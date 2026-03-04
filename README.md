@@ -155,25 +155,10 @@ Or use AWS console — terminate instance first, then delete VPC which removes a
 This is a public repository. Automated destroy workflows are not included for security reasons — see Design Decisions below. To destroy all resources manually:
 
 ```bash
-# Terminate EC2 instance first
-aws ec2 terminate-instances --instance-ids YOUR_INSTANCE_ID
-aws ec2 wait instance-terminated --instance-ids YOUR_INSTANCE_ID
+### Manual Teardown
 
-# Delete security group
-aws ec2 delete-security-group --group-id YOUR_SG_ID
-
-# Delete subnet
-aws ec2 delete-subnet --subnet-id YOUR_SUBNET_ID
-
-# Detach and delete internet gateway
-aws ec2 detach-internet-gateway --internet-gateway-id YOUR_IGW_ID --vpc-id YOUR_VPC_ID
-aws ec2 delete-internet-gateway --internet-gateway-id YOUR_IGW_ID
-
-# Delete route table
-aws ec2 delete-route-table --route-table-id YOUR_RT_ID
-
-# Delete VPC last
-aws ec2 delete-vpc --vpc-id YOUR_VPC_ID
+1. EC2 → Instances → select instance → Instance State → Terminate. Wait for terminated status.
+2. VPC → Your VPCs → select `gitops-infra-pipeline-vpc` → Actions → Delete VPC. AWS removes all associated resources automatically.
 ```
 
 ## Design Decisions
