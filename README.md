@@ -142,9 +142,6 @@ Or use AWS console — terminate instance first, then delete VPC which removes a
 ### Successful Pipeline Run
 ![Successful Pipeline Run](screenshots/pipeline_success.png)
 
-### Slack Deployment Notification
-![Slack Deployment Notification](screenshots/slack_deployment.png)
-
 ### Slack Audit Log
 ![Slack Audit Log](screenshots/slack_audit.png)
 
