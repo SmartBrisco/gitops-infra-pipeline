@@ -204,3 +204,10 @@ Confirm webhook URLs are stored correctly in GitHub secrets with no trailing spa
 
 **Resources already exist on redeploy**
 Without remote state backend, Terraform has no memory of previous deployments. Clean up existing resources manually before redeploying. See Manual Teardown section above.
+
+
+## Part of a Three-Project Platform Engineering Portfolio
+
+- **Project 1** — [Argo Events CI/CD Pipeline](https://github.com/SmartBrisco/argo-event-pipeline) — Event-driven application pipeline with AI-powered failure analysis
+- **Project 2** — GitOps Infrastructure Pipeline (this project) — GitHub Actions and Terraform infrastructure automation
+- **Project 3** — [Platform Observability Stack](https://github.com/SmartBrisco/platform-observability) — Unified observability with OpenTelemetry, Jaeger, Prometheus, and Grafana
