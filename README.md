@@ -155,7 +155,7 @@ Or use AWS console — terminate instance first, then delete VPC which removes a
 This is a public repository. Automated destroy workflows are not included for security reasons — see Design Decisions below. To destroy all resources manually:
 
 ```bash
-### Manual Teardown
+### 5. Manual Teardown
 
 1. EC2 → Instances → select instance → Instance State → Terminate. Wait for terminated status.
 2. VPC → Your VPCs → select `gitops-infra-pipeline-vpc` → Actions → Delete VPC. AWS removes all associated resources automatically.
@@ -173,7 +173,7 @@ Long-lived AWS credentials stored in GitHub secrets are a security liability. OI
 Building all networking infrastructure explicitly in Terraform ensures consistent, reproducible deployments regardless of account state. Every resource is tagged, tracked, and managed.
 
 **Why three Slack channels?**
-Operational signal separation. Success notifications in `#infra-deployments` and humamn readable. `#infra-alerts` can be configured for on-call paging without noise from successful runs. `#infra-audit` provides a complete searchable audit trail for compliance and incident investigation (every deployment logged regardless of outcome).
+Operational signal separation. Success notifications in `#infra-deployments` and human readable. `#infra-alerts` can be configured for on-call paging without noise from successful runs. `#infra-audit` provides a complete searchable audit trail for compliance and incident investigation (every deployment logged regardless of outcome).
 
 **Why soft_fail on Trivy?**
 The SSH ingress rule is intentionally open for demonstration purposes. In production this would be restricted to known CIDR ranges and `exit-code` would be set to `1`, blocking any deployment with HIGH or CRITICAL findings.
@@ -206,8 +206,9 @@ Confirm webhook URLs are stored correctly in GitHub secrets with no trailing spa
 Without remote state backend, Terraform has no memory of previous deployments. Clean up existing resources manually before redeploying. See Manual Teardown section above.
 
 
-## Part of a Three-Project Platform Engineering Portfolio
+## Part of a Three-Project Platform Engineering Portfolio complete with makefile for fast deployment
 
 - **Project 1** — [Argo Events CI/CD Pipeline](https://github.com/SmartBrisco/argo-event-pipeline) — Event-driven application pipeline with AI-powered failure analysis
 - **Project 2** — GitOps Infrastructure Pipeline (this project) — GitHub Actions and Terraform infrastructure automation
 - **Project 3** — [Platform Observability Stack](https://github.com/SmartBrisco/platform-observability) — Unified observability with OpenTelemetry, Jaeger, Prometheus, and Grafana
+- **Bootstrap** — [Platform](https://github.com/SmartBrisco/Platform) — One command to spin up the full platform locally in under 10 minutes
