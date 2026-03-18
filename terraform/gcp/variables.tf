@@ -25,5 +25,5 @@ variable "deploy" {
 variable "gcp_credentials" {
   description = "GCP credentials JSON. Leave empty when not deploying."
   type        = string
-  default     = "{}"
+  default     = "{\"type\":\"service_account\"}"
 }
