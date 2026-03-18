@@ -5,7 +5,7 @@ resource "azurerm_resource_group" "rg" {
 
   tags = {
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -18,7 +18,7 @@ resource "azurerm_virtual_network" "vnet" {
 
   tags = {
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -50,7 +50,7 @@ resource "azurerm_network_security_group" "nsg" {
 
   tags = {
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -98,6 +98,6 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   tags = {
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
