@@ -47,6 +47,6 @@ resource "google_compute_instance" "vm" {
 
   labels = {
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }

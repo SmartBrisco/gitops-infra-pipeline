@@ -176,7 +176,7 @@ Building all networking infrastructure explicitly in Terraform ensures consisten
 Operational signal separation. Success notifications in `#infra-deployments` and human readable. `#infra-alerts` can be configured for on-call paging without noise from successful runs. `#infra-audit` provides a complete searchable audit trail for compliance and incident investigation (every deployment logged regardless of outcome).
 
 **Why soft_fail on Trivy?**
-The SSH ingress rule is intentionally open for demonstration purposes. In production this would be restricted to known CIDR ranges and `exit-code` would be set to `1`, blocking any deployment with HIGH or CRITICAL findings.
+The SSH ingress rule is intentionally open for devnstration purposes. In production this would be restricted to known CIDR ranges and `exit-code` would be set to `1`, blocking any deployment with HIGH or CRITICAL findings.
 
 **Why no automated destroy workflow?**
 This is a public repository. An automated destroy workflow accessible via `workflow_dispatch` in a public repo creates an unnecessary attack surface — any authenticated GitHub user could potentially trigger infrastructure destruction. Infrastructure teardown is handled manually via AWS CLI or console.
