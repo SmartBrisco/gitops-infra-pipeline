@@ -211,3 +211,99 @@ jobs:
           -d "{\"text\":\"📋 *Audit Log - GCP*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"
 
+  # -----------------------------------------
+  # AZURE
+  # -----------------------------------------
+  deploy-azure:
+    name: Azure Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Swap this step out for real OIDC when you have an Azure account:
+      #
+      # - name: Authenticate to Azure via Federated Credentials
+      #   uses: azure/login@v2
+      #   with:
+      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+        working-directory: terraform/azure
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        working-directory: terraform/azure
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+        working-directory: terraform/azure
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Run TFLint
+        run: tflint --init && tflint
+        working-directory: terraform/azure
+
+      - name: Trivy IaC Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: terraform/azure
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          format: table
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan
+        working-directory: terraform/azure
+
+      # Uncomment when real Azure credentials are configured:
+      # - name: Terraform Apply
+      #   id: apply
+      #   run: terraform apply -auto-approve
+      #   working-directory: terraform/azure
+
+      - name: Notify Slack - Success
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"✅ *Azure Infrastructure Validated*\n*Status:* Plan passed (apply disabled — no credentials)\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
+          "$SLACK_WEBHOOK"
+
+      - name: Notify Slack - Failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"🚨 *Azure Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
+
+      - name: Notify Slack - Audit
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_AUDIT }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"📋 *Audit Log - Azure*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
