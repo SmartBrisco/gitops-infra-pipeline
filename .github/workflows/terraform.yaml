@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'terraform/**'  
+      - 'terraform/**'
   workflow_dispatch:
 
 permissions:
@@ -13,16 +13,20 @@ permissions:
   contents: read
 
 jobs:
-  terraform:
-    name: Terraform Deploy
+
+  # -----------------------------------------
+  # AWS
+  # -----------------------------------------
+  deploy-aws:
+    name: AWS Deploy
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
@@ -36,32 +40,32 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
-        working-directory: terraform
+        working-directory: terraform/aws
 
       - name: Terraform Format Check
         id: fmt
         run: terraform fmt -check -recursive
-        working-directory: terraform
+        working-directory: terraform/aws
 
       - name: Terraform Validate
         id: validate
         run: terraform validate
-        working-directory: terraform
+        working-directory: terraform/aws
 
-      - name: TFLint
+      - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
         with:
           tflint_version: latest
-          
+
       - name: Run TFLint
         run: tflint --init && tflint
-        working-directory: terraform
+        working-directory: terraform/aws
 
       - name: Trivy IaC Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          scan-ref: terraform
+          scan-ref: terraform/aws
           severity: HIGH,CRITICAL
           exit-code: 0
           format: table
@@ -69,12 +73,12 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: terraform plan -out=tfplan
-        working-directory: terraform
+        working-directory: terraform/aws
 
       - name: Terraform Apply
         id: apply
         run: terraform apply -auto-approve tfplan
-        working-directory: terraform
+        working-directory: terraform/aws
 
       - name: Get Terraform Outputs
         id: outputs
@@ -82,7 +86,7 @@ jobs:
           echo "instance_id=$(terraform output -raw instance_id)" >> $GITHUB_OUTPUT
           echo "public_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
           echo "instance_state=$(terraform output -raw instance_state)" >> $GITHUB_OUTPUT
-        working-directory: terraform
+        working-directory: terraform/aws
 
       - name: Notify Slack - Success
         if: success()
@@ -90,7 +94,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\" *Infrastructure Deployed Successfully*\n*Instance ID:* ${{ steps.outputs.outputs.instance_id }}\n*Public IP:* ${{ steps.outputs.outputs.public_ip }}\n*Region:* us-east-1\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
+          -d "{\"text\":\"✅ *AWS Infrastructure Deployed*\n*Instance ID:* ${{ steps.outputs.outputs.instance_id }}\n*Public IP:* ${{ steps.outputs.outputs.public_ip }}\n*Region:* us-east-1\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
           "$SLACK_WEBHOOK"
 
       - name: Notify Slack - Failure
@@ -99,7 +103,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\" *Infrastructure Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          -d "{\"text\":\"🚨 *AWS Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"
 
       - name: Notify Slack - Audit
@@ -108,5 +112,102 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_AUDIT }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\" *Audit Log*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
+          -d "{\"text\":\"📋 *Audit Log - AWS*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"
+
+  # -----------------------------------------
+  # GCP
+  # -----------------------------------------
+  deploy-gcp:
+    name: GCP Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Swap this step out for real OIDC when you have a GCP account:
+      #
+      # - name: Authenticate to GCP via Workload Identity Federation
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      #     service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+        working-directory: terraform/gcp
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        working-directory: terraform/gcp
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+        working-directory: terraform/gcp
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Run TFLint
+        run: tflint --init && tflint
+        working-directory: terraform/gcp
+
+      - name: Trivy IaC Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: terraform/gcp
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          format: table
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan
+        working-directory: terraform/gcp
+
+      # Uncomment when real GCP credentials are configured:
+      # - name: Terraform Apply
+      #   id: apply
+      #   run: terraform apply -auto-approve
+      #   working-directory: terraform/gcp
+
+      - name: Notify Slack - Success
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"✅ *GCP Infrastructure Validated*\n*Status:* Plan passed (apply disabled — no credentials)\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
+          "$SLACK_WEBHOOK"
+
+      - name: Notify Slack - Failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"🚨 *GCP Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
+
+      - name: Notify Slack - Audit
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_AUDIT }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"📋 *Audit Log - GCP*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
+

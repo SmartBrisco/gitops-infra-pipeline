@@ -154,12 +154,12 @@ Or use AWS console — terminate instance first, then delete VPC which removes a
 
 This is a public repository. Automated destroy workflows are not included for security reasons — see Design Decisions below. To destroy all resources manually:
 
-```bash
+
 ### 5. Manual Teardown
 
 1. EC2 → Instances → select instance → Instance State → Terminate. Wait for terminated status.
 2. VPC → Your VPCs → select `gitops-infra-pipeline-vpc` → Actions → Delete VPC. AWS removes all associated resources automatically.
-```
+
 
 ## Design Decisions
 
