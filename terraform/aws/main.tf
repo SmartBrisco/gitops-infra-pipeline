@@ -5,9 +5,9 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
 
   tags = {
-    Name      = "${var.project_name}-vpc"
-    Project   = var.project_name
-    ManagedBy = "terraform"
+    Name        = "${var.project_name}-vpc"
+    managed-by  = "terraform"
+    environment = "dev"
   }
 }
 
@@ -19,9 +19,9 @@ resource "aws_subnet" "main" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name      = "${var.project_name}-subnet"
-    Project   = var.project_name
-    ManagedBy = "terraform"
+    Name        = "${var.project_name}-subnet"
+    managed-by  = "terraform"
+    environment = "dev"
   }
 }
 
@@ -30,9 +30,9 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name      = "${var.project_name}-igw"
-    Project   = var.project_name
-    ManagedBy = "terraform"
+    Name        = "${var.project_name}-igw"
+    managed-by  = "terraform"
+    environment = "dev"
   }
 }
 
@@ -46,9 +46,9 @@ resource "aws_route_table" "main" {
   }
 
   tags = {
-    Name      = "${var.project_name}-rt"
-    Project   = var.project_name
-    ManagedBy = "terraform"
+    Name        = "${var.project_name}-rt"
+    managed-by  = "terraform"
+    environment = "dev"
   }
 }
 
@@ -80,34 +80,25 @@ resource "aws_security_group" "dev" {
   }
 
   tags = {
-    Name      = "${var.project_name}-sg"
-    Project   = var.project_name
-    ManagedBy = "terraform"
+    Name        = "${var.project_name}-sg"
+    managed-by  = "terraform"
+    environment = "dev"
   }
 }
 
-# AMI - Latest Amazon Linux 2
-data "aws_ami" "amazon_linux_2" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
-  }
-}
-
-# EC2 Instance
+# AMI - hardcoded for policy testing, data source requires real AWS credentials
+# To use dynamic lookup restore: data "aws_ami" "amazon_linux_2" block
+# and set ami = data.aws_ami.amazon_linux_2.id on the instance resource
 resource "aws_instance" "dev" {
-  ami                    = data.aws_ami.amazon_linux_2.id
+  ami                    = "ami-0c02fb55956c7d316" # Amazon Linux 2 us-east-1
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.main.id
   vpc_security_group_ids = [aws_security_group.dev.id]
 
   tags = {
-    Name      = "${var.project_name}-instance"
-    Project   = var.project_name
-    ManagedBy = "terraform"
-    CreatedBy = "github-actions"
+    Name        = "${var.project_name}-instance"
+    managed-by  = "terraform"
+    environment = "dev"
+    created-by  = "github-actions"
   }
 }
