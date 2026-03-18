@@ -11,14 +11,6 @@ terraform {
 
 provider "azurerm" {
   features {}
-  # resource_provider_registrations = "none"
-  # Uncomment when Azure credentials are configured  
-}
-
-provider "azurerm" {
-  features {}
-  # resource_provider_registrations = "none"  //Uncomment when Azure credentials are configured  
-  skip_provider_registration = false
   use_cli                    = false
   use_msi                    = false
   use_oidc                   = false
