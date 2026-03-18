@@ -237,8 +237,8 @@ Long-lived credentials stored in GitHub secrets are a security liability. OIDC p
 **Why build all networking explicitly rather than use defaults?**
 Building all networking infrastructure explicitly in Terraform ensures consistent, reproducible deployments regardless of account state. Every resource is tagged, tracked, and managed. No dependency on default VPCs or pre-existing resources.
 
-**Why soft_fail on Trivy and OPA network policy?**
-The SSH ingress rule is intentionally open for demonstration purposes. In production SSH would be restricted to known CIDR ranges, Trivy `exit-code` would be set to `1`, and the OPA network policy would block the deploy. The current configuration demonstrates the scanning capability without blocking the dev pipeline.
+**Why soft_fail on Trivy?**
+The SSH ingress rule is intentionally open for devnstration purposes. In production this would be restricted to known CIDR ranges and `exit-code` would be set to `1`, blocking any deployment with HIGH or CRITICAL findings.
 
 **Why no automated destroy workflow?**
 This is a public repository. An automated destroy workflow accessible via `workflow_dispatch` creates an unnecessary attack surface.  In a private repository with branch protection, required reviewers, and environment gates, an automated destroy workflow is recommended.
