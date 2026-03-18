@@ -15,10 +15,91 @@ permissions:
 jobs:
 
   # -----------------------------------------
+  # OPA POLICY TESTS
+  # Runs before all cloud deploy jobs.
+  # deploy-aws, deploy-gcp, deploy-azure all
+  # declare: needs: [policy-test]
+  # -----------------------------------------
+  policy-test:
+    name: OPA Policy Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+          terraform_wrapper: false
+
+      - name: Install Conftest
+        run: |
+          wget https://github.com/open-policy-agent/conftest/releases/download/v0.50.0/conftest_0.50.0_Linux_x86_64.tar.gz
+          tar xzf conftest_0.50.0_Linux_x86_64.tar.gz
+          sudo mv conftest /usr/local/bin/
+
+      # AWS plan → JSON → Conftest
+      - name: Terraform Init (AWS)
+        run: terraform init
+        working-directory: terraform/aws
+
+      - name: Terraform Plan JSON (AWS)
+        run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
+        working-directory: terraform/aws
+        env:
+          AWS_ACCESS_KEY_ID: "mock"
+          AWS_SECRET_ACCESS_KEY: "mock"
+          AWS_DEFAULT_REGION: "us-east-1"
+
+      - name: OPA Policy Test (AWS)
+        run: conftest test tfplan.json --policy ../../policy --namespace terraform.policies
+        working-directory: terraform/aws
+
+      # GCP plan → JSON → Conftest
+      - name: Terraform Init (GCP)
+        run: terraform init
+        working-directory: terraform/gcp
+
+      - name: Terraform Plan JSON (GCP)
+        run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
+        working-directory: terraform/gcp
+
+      - name: OPA Policy Test (GCP)
+        run: conftest test tfplan.json --policy ../../policy --namespace terraform.policies
+        working-directory: terraform/gcp
+
+      # # Azure plan → JSON → Conftest
+      # - name: Terraform Init (Azure)
+      #   run: terraform init
+      #   working-directory: terraform/azure
+
+      # - name: Terraform Plan JSON (Azure)
+      #   run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
+      #   working-directory: terraform/azure
+
+      # - name: OPA Policy Test (Azure)
+      #   run: conftest test tfplan.json --policy ../../policy --namespace terraform.policies
+      #   working-directory: terraform/azure
+
+      - name: Notify Slack - Policy Test Failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"🚨 *OPA Policy Test Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
+
+
+
+  # -----------------------------------------
   # AWS
   # -----------------------------------------
   deploy-aws:
     name: AWS Deploy
+    needs: [policy-test]
     runs-on: ubuntu-latest
 
     steps:
@@ -120,6 +201,7 @@ jobs:
   # -----------------------------------------
   deploy-gcp:
     name: GCP Deploy
+    needs: [policy-test]
     runs-on: ubuntu-latest
 
     steps:
@@ -216,6 +298,7 @@ jobs:
   # -----------------------------------------
   deploy-azure:
     name: Azure Deploy
+    needs: [policy-test]
     runs-on: ubuntu-latest
 
     steps:
