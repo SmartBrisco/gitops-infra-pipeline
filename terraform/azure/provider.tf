@@ -14,3 +14,16 @@ provider "azurerm" {
   # resource_provider_registrations = "none"
   # Uncomment when Azure credentials are configured  
 }
+
+provider "azurerm" {
+  features {}
+  # resource_provider_registrations = "none"  //Uncomment when Azure credentials are configured  
+  skip_provider_registration = false
+  use_cli                    = false
+  use_msi                    = false
+  use_oidc                   = false
+  client_id       = var.azure_client_id
+  tenant_id       = var.azure_tenant_id
+  subscription_id = var.azure_subscription_id
+  client_secret   = var.azure_client_secret
+}
