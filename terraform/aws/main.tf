@@ -7,7 +7,7 @@ resource "aws_vpc" "main" {
   tags = {
     Name        = "${var.project_name}-vpc"
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -21,7 +21,7 @@ resource "aws_subnet" "main" {
   tags = {
     Name        = "${var.project_name}-subnet"
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -32,7 +32,7 @@ resource "aws_internet_gateway" "main" {
   tags = {
     Name        = "${var.project_name}-igw"
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -48,7 +48,7 @@ resource "aws_route_table" "main" {
   tags = {
     Name        = "${var.project_name}-rt"
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -82,7 +82,7 @@ resource "aws_security_group" "dev" {
   tags = {
     Name        = "${var.project_name}-sg"
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
   }
 }
 
@@ -98,7 +98,7 @@ resource "aws_instance" "dev" {
   tags = {
     Name        = "${var.project_name}-instance"
     managed-by  = "terraform"
-    environment = "demo"
+    environment = "dev"
     created-by  = "github-actions"
   }
 }
