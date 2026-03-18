@@ -15,3 +15,9 @@ variable "deploy" {
   type        = bool
   default     = false
 }
+
+variable "ssh_public_key" {
+  description = "SSH public key for VM admin user"
+  type        = string
+  default     = ""
+}
