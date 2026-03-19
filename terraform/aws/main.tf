@@ -2,7 +2,7 @@
 resource "aws_security_group" "dev" {
   name        = "${var.project_name}-sg"
   description = "temp security group for gitops pipeline"
-  network_id      = aws_network.main.id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description = "SSH"
@@ -33,7 +33,7 @@ resource "aws_instance" "dev" {
   ami                    = "ami-0c02fb55956c7d316" # Amazon Linux 2 us-east-1
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.main.id
-  network_security_group_ids = [aws_security_group.dev.id]
+  vpc_security_group_ids = [aws_security_group.dev.id]
 
   tags = {
     Name        = "${var.project_name}-instance"
