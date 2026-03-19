@@ -12,3 +12,11 @@ output "resource_group_name" {
   description = "Resource group name"
   value       = var.deploy ? azurerm_resource_group.rg[0].name : "not deployed"
 }
+
+output "aks_cluster_name" {
+  value = var.deploy ? azurerm_kubernetes_cluster.main[0].name : "not deployed"
+}
+
+output "aks_cluster_endpoint" {
+  value = var.deploy ? azurerm_kubernetes_cluster.main[0].kube_config[0].host : "not deployed"
+}
