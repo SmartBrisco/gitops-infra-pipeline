@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'terraform/**'
+      - 'terraform/aws/**'
   workflow_dispatch:
 
 permissions:
