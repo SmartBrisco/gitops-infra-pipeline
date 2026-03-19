@@ -52,7 +52,7 @@ resource "aws_eks_cluster" "main" {
   role_arn = aws_iam_role.eks_cluster.arn
   version  = "1.31"
 
-  vpc_config {
+  network_config {
     subnet_ids             = [aws_subnet.private_a.id, aws_subnet.private_b.id]
     endpoint_public_access = true # Demo only — restrict in production
   }

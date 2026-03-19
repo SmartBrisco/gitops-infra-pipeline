@@ -9,6 +9,6 @@ output "instance_self_link" {
 }
 
 output "network_name" {
-  description = "VPC network name"
-  value       = var.deploy ? google_compute_network.vpc[0].name : "not deployed"
+  description = "network network name"
+  value       = var.deploy ? google_compute_network.network[0].name : "not deployed"
 }
