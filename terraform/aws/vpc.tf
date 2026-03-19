@@ -14,7 +14,7 @@ resource "aws_vpc" "main" {
 # --- Public Subnet ---
 resource "aws_subnet" "main" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"  # fixed from /16
+  cidr_block              = "10.0.1.0/24" # fixed from /16
   availability_zone       = var.availability_zone
   map_public_ip_on_launch = true
 
