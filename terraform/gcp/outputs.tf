@@ -9,6 +9,14 @@ output "instance_self_link" {
 }
 
 output "network_name" {
-  description = "network network name"
+  description = "GCP network name"
   value       = var.deploy ? google_compute_network.network[0].name : "not deployed"
+}
+
+output "gke_cluster_name" {
+  value = var.deploy ? google_container_cluster.main[0].name : "not deployed"
+}
+
+output "gke_cluster_endpoint" {
+  value = var.deploy ? google_container_cluster.main[0].endpoint : "not deployed"
 }
