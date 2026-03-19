@@ -23,9 +23,10 @@ Three Parallel Jobs
         │     ├── OIDC Authentication → AWS IAM Role (temporary credentials)
         │     ├── fmt → validate → TFLint → Trivy
         │     ├── Terraform Plan + Apply
-        │     │     ├── VPC + Subnet + Internet Gateway + Route Table
-        │     │     └── EC2 t2.micro (Amazon Linux 2)
-        │     ├── Capture Outputs (Instance ID, Public IP, State)
+        │     │     ├── VPC + Subnets (public + private) + IGW + NAT Gateway
+        │     │     ├── EC2 t2.micro (Amazon Linux 2)
+        │     │     └── EKS 1.31 Cluster + Managed Node Group (t3.medium)
+        │     ├── Capture Outputs (Instance ID, Public IP, Cluster Name, Endpoint)
         │     └── Slack Notifications
         │
         ├── GCP Deploy
@@ -79,20 +80,26 @@ gitops-infra-pipeline/
 │   └── compute.rego               # Approved instance types per cloud
 ├── terraform/
 │   ├── aws/
-│   │   ├── main.tf                # VPC, subnet, security group, EC2
+│   │   ├── main.tf                # Security group, EC2
+│   │   ├── network.tf             # VPC, subnets, IGW, NAT gateway, route tables
+│   │   ├── eks.tf                 # EKS cluster, node group, IAM roles
 │   │   ├── variables.tf
-│   │   ├── outputs.tf             # Instance ID, public IP, state
-│   │   └── provider.tf            # AWS provider with skip flags for policy testing
-│   ├── gcp/
-│   │   ├── main.tf                # VPC, subnet, firewall, compute instance
-│   │   ├── variables.tf           # Includes deploy flag (default = false)
 │   │   ├── outputs.tf
-│   │   └── provider.tf            # Google provider
+│   │   └── provider.tf
+│   ├── gcp/
+│   │   ├── main.tf                # Resource group, compute instance
+│   │   ├── network.tf             # VPC, subnet, firewall
+│   │   ├── gke.tf                 # GKE cluster, node pool, IAM
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── provider.tf
 │   └── azure/
-│       ├── main.tf                # Resource group, VNet, NSG, Linux VM
-│       ├── variables.tf           # Includes deploy flag (default = false)
+│       ├── main.tf                # Resource group, Linux VM
+│       ├── network.tf             # VNet, subnet, NSG, NIC
+│       ├── aks.tf                 # AKS cluster, identity
+│       ├── variables.tf
 │       ├── outputs.tf
-│       └── provider.tf            # AzureRM provider
+│       └── provider.tf
 ├── screenshots/
 ├── .gitignore
 └── README.md
@@ -206,8 +213,10 @@ git push origin main
 
 This is a public repository. Automated destroy workflows are not included - see Design Decisions below.
 
-1. EC2 → Instances → select instance → Instance State → Terminate. Wait for terminated status.
-2. VPC → Your VPCs → select `gitops-infra-pipeline-vpc` → Actions → Delete VPC. AWS removes all associated resources automatically.
+1. EKS → Clusters → delete node group → wait → delete cluster
+2. EC2 → Instances → Terminate
+3. VPC → Delete VPC (removes subnets, IGW, route tables)
+4. EC2 → Elastic IPs → release unattached EIP
 
 ## Screenshots
 
@@ -219,6 +228,9 @@ This is a public repository. Automated destroy workflows are not included - see 
 
 ### AWS EC2 Console
 ![AWS EC2 Console](screenshots/aws_ec2.png)
+
+### AWS EKS Console
+![AWS EKS Console](screenshots/aws_eks.png)
 
 ## Design Decisions
 
