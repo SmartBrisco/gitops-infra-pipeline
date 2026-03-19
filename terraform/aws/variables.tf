@@ -15,3 +15,9 @@ variable "project_name" {
   type        = string
   default     = "gitops-infra-pipeline"
 }
+
+variable "availability_zone" {
+  description = "AWS Availability Zone"
+  type = string
+  default = "us-east-1a"
+}
