@@ -1,12 +1,12 @@
 name: GitOps Infrastructure Pipeline
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'terraform/aws/**'
   workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: 'Deploy to prod? (yes/no)'
+        required: true
+        default: 'no'
 
 permissions:
   id-token: write
@@ -16,9 +16,6 @@ jobs:
 
   # -----------------------------------------
   # OPA POLICY TESTS
-  # Runs before all cloud deploy jobs.
-  # deploy-aws, deploy-gcp, deploy-azure all
-  # declare: needs: [policy-test]
   # -----------------------------------------
   policy-test:
     name: OPA Policy Tests
@@ -40,24 +37,22 @@ jobs:
           tar xzf conftest_0.50.0_Linux_x86_64.tar.gz
           sudo mv conftest /usr/local/bin/
 
-      # AWS plan → JSON → Conftest
-      - name: Terraform Init (AWS)
+      - name: Terraform Init (AWS Dev)
         run: terraform init
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
 
-      - name: Terraform Plan JSON (AWS)
+      - name: Terraform Plan JSON (AWS Dev)
         run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
         env:
           AWS_ACCESS_KEY_ID: "mock"
           AWS_SECRET_ACCESS_KEY: "mock"
           AWS_DEFAULT_REGION: "us-east-1"
 
-      - name: OPA Policy Test (AWS)
-        run: conftest test tfplan.json --policy ../../policy --namespace terraform.policies
-        working-directory: terraform/aws
+      - name: OPA Policy Test (AWS Dev)
+        run: conftest test tfplan.json --policy ../../../policy --namespace terraform.policies
+        working-directory: terraform/aws/dev
 
-      # GCP plan → JSON → Conftest
       - name: Terraform Init (GCP)
         run: terraform init
         working-directory: terraform/gcp
@@ -70,19 +65,6 @@ jobs:
         run: conftest test tfplan.json --policy ../../policy --namespace terraform.policies
         working-directory: terraform/gcp
 
-      # # Azure plan → JSON → Conftest
-      # - name: Terraform Init (Azure)
-      #   run: terraform init
-      #   working-directory: terraform/azure
-
-      # - name: Terraform Plan JSON (Azure)
-      #   run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
-      #   working-directory: terraform/azure
-
-      # - name: OPA Policy Test (Azure)
-      #   run: conftest test tfplan.json --policy ../../policy --namespace terraform.policies
-      #   working-directory: terraform/azure
-
       - name: Notify Slack - Policy Test Failure
         if: failure()
         env:
@@ -92,13 +74,11 @@ jobs:
           -d "{\"text\":\"🚨 *OPA Policy Test Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"
 
-
-
   # -----------------------------------------
-  # AWS
+  # AWS DEV
   # -----------------------------------------
-  deploy-aws:
-    name: AWS Deploy
+  deploy-aws-dev:
+    name: AWS Dev Deploy
     needs: [policy-test]
     runs-on: ubuntu-latest
 
@@ -119,19 +99,16 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        id: init
         run: terraform init
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
 
       - name: Terraform Format Check
-        id: fmt
         run: terraform fmt -check -recursive
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
 
       - name: Terraform Validate
-        id: validate
         run: terraform validate
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
 
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
@@ -140,26 +117,24 @@ jobs:
 
       - name: Run TFLint
         run: tflint --init && tflint
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
 
       - name: Trivy IaC Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          scan-ref: terraform/aws
+          scan-ref: terraform/aws/dev
           severity: HIGH,CRITICAL
           exit-code: 0
           format: table
 
       - name: Terraform Plan
-        id: plan
         run: terraform plan -out=tfplan
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
 
       - name: Terraform Apply
-        id: apply
         run: terraform apply -auto-approve tfplan
-        working-directory: terraform/aws
+        working-directory: terraform/aws/dev
 
       - name: Get Terraform Outputs
         id: outputs
@@ -167,7 +142,8 @@ jobs:
           echo "instance_id=$(terraform output -raw instance_id)" >> $GITHUB_OUTPUT
           echo "public_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
           echo "instance_state=$(terraform output -raw instance_state)" >> $GITHUB_OUTPUT
-        working-directory: terraform/aws
+          echo "eks_cluster=$(terraform output -raw eks_cluster_name)" >> $GITHUB_OUTPUT
+        working-directory: terraform/aws/dev
 
       - name: Notify Slack - Success
         if: success()
@@ -175,7 +151,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\"✅ *AWS Infrastructure Deployed*\n*Instance ID:* ${{ steps.outputs.outputs.instance_id }}\n*Public IP:* ${{ steps.outputs.outputs.public_ip }}\n*Region:* us-east-1\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
+          -d "{\"text\":\"✅ *AWS Dev Infrastructure Deployed*\n*Instance ID:* ${{ steps.outputs.outputs.instance_id }}\n*Public IP:* ${{ steps.outputs.outputs.public_ip }}\n*EKS Cluster:* ${{ steps.outputs.outputs.eks_cluster }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\"}" \
           "$SLACK_WEBHOOK"
 
       - name: Notify Slack - Failure
@@ -184,7 +160,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\"🚨 *AWS Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          -d "{\"text\":\"🚨 *AWS Dev Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"
 
       - name: Notify Slack - Audit
@@ -193,7 +169,164 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_AUDIT }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          -d "{\"text\":\"📋 *Audit Log - AWS*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
+          -d "{\"text\":\"📋 *Audit Log - AWS Dev*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
+
+  # -----------------------------------------
+  # PROD SECURITY GATES
+  # Trivy + OPA against prod config
+  # Only runs if deploy_prod = yes
+  # -----------------------------------------
+  prod-security-gates:
+    name: Prod Security Gates
+    needs: [deploy-aws-dev]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_prod == 'yes' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trivy IaC Scan - Prod
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: terraform/aws/prod
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          format: table
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+          terraform_wrapper: false
+
+      - name: Install Conftest
+        run: |
+          wget https://github.com/open-policy-agent/conftest/releases/download/v0.50.0/conftest_0.50.0_Linux_x86_64.tar.gz
+          tar xzf conftest_0.50.0_Linux_x86_64.tar.gz
+          sudo mv conftest /usr/local/bin/
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Terraform Init (AWS Prod)
+        run: terraform init
+        working-directory: terraform/aws/prod
+
+      - name: Terraform Plan JSON (AWS Prod)
+        run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
+        working-directory: terraform/aws/prod
+
+      - name: OPA Policy Test (AWS Prod)
+        run: conftest test tfplan.json --policy ../../../policy --namespace terraform.policies
+        working-directory: terraform/aws/prod
+
+      - name: Notify Slack - Gates Passed
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"🔒 *Prod Security Gates Passed*\n*Trivy:* Clean\n*OPA:* Compliant\n*Awaiting manual approval for prod deploy*\n*Triggered by:* ${{ github.actor }}\"}" \
+          "$SLACK_WEBHOOK"
+
+      - name: Notify Slack - Gates Failed
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"🚨 *Prod Security Gates Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
+
+  # -----------------------------------------
+  # MANUAL APPROVAL GATE
+  # -----------------------------------------
+  prod-approval:
+    name: Manual Prod Approval
+    needs: [prod-security-gates]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_prod == 'yes' }}
+    environment: prod
+
+    steps:
+      - name: Awaiting approval
+        run: echo "Approved for prod deploy"
+
+  # -----------------------------------------
+  # AWS PROD
+  # -----------------------------------------
+  deploy-aws-prod:
+    name: AWS Prod Deploy
+    needs: [prod-approval]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_prod == 'yes' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform/aws/prod
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: terraform/aws/prod
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: terraform/aws/prod
+
+      - name: Get Terraform Outputs
+        id: outputs
+        run: |
+          echo "eks_cluster=$(terraform output -raw eks_cluster_name)" >> $GITHUB_OUTPUT
+          echo "eks_endpoint=$(terraform output -raw eks_cluster_endpoint)" >> $GITHUB_OUTPUT
+        working-directory: terraform/aws/prod
+
+      - name: Notify Slack - Success
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"✅ *AWS Prod Infrastructure Deployed*\n*EKS Cluster:* ${{ steps.outputs.outputs.eks_cluster }}\n*Endpoint:* ${{ steps.outputs.outputs.eks_endpoint }}\n*Commit:* ${{ github.sha }}\n*Approved and deployed by:* ${{ github.actor }}\"}" \
+          "$SLACK_WEBHOOK"
+
+      - name: Notify Slack - Failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"🚨 *AWS Prod Deployment Failed*\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Details:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          "$SLACK_WEBHOOK"
+
+      - name: Notify Slack - Audit
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_AUDIT }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          -d "{\"text\":\"📋 *Audit Log - AWS Prod*\n*Status:* ${{ job.status }}\n*Workflow:* ${{ github.workflow }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n*Run ID:* ${{ github.run_id }}\"}" \
           "$SLACK_WEBHOOK"
 
   # -----------------------------------------
@@ -208,14 +341,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Swap this step out for real OIDC when you have a GCP account:
-      #
-      # - name: Authenticate to GCP via Workload Identity Federation
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-      #     service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -223,17 +348,14 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        id: init
         run: terraform init
         working-directory: terraform/gcp
 
       - name: Terraform Format Check
-        id: fmt
         run: terraform fmt -check -recursive
         working-directory: terraform/gcp
 
       - name: Terraform Validate
-        id: validate
         run: terraform validate
         working-directory: terraform/gcp
 
@@ -256,15 +378,8 @@ jobs:
           format: table
 
       - name: Terraform Plan
-        id: plan
         run: terraform plan
         working-directory: terraform/gcp
-
-      # Uncomment when real GCP credentials are configured:
-      # - name: Terraform Apply
-      #   id: apply
-      #   run: terraform apply -auto-approve
-      #   working-directory: terraform/gcp
 
       - name: Notify Slack - Success
         if: success()
@@ -305,15 +420,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Swap this step out for real OIDC when you have an Azure account:
-      #
-      # - name: Authenticate to Azure via Federated Credentials
-      #   uses: azure/login@v2
-      #   with:
-      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
-      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -321,17 +427,14 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        id: init
         run: terraform init
         working-directory: terraform/azure
 
       - name: Terraform Format Check
-        id: fmt
         run: terraform fmt -check -recursive
         working-directory: terraform/azure
 
       - name: Terraform Validate
-        id: validate
         run: terraform validate
         working-directory: terraform/azure
 
@@ -353,19 +456,10 @@ jobs:
           exit-code: 0
           format: table
 
-      # Azure plan requires active credentials - skipped until account configured
       - name: Terraform Plan
-        id: plan
         run: terraform plan
         working-directory: terraform/azure
         continue-on-error: true
-        
-
-      # Uncomment when real Azure credentials are configured:
-      # - name: Terraform Apply
-      #   id: apply
-      #   run: terraform apply -auto-approve
-      #   working-directory: terraform/azure
 
       - name: Notify Slack - Success
         if: success()
