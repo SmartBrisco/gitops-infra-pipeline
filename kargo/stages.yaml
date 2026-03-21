@@ -1,0 +1,64 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: gitops-infra
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: gitops-infra-warehouse
+    sources:
+      direct: true
+  promotionTemplate:
+    spec:
+      steps:
+      - uses: git-clone
+        config:
+          repoURL: https://github.com/SmartBrisco/gitops-infra-pipeline
+          checkout:
+          - branch: main
+            path: ./repo
+      - uses: http
+        config:
+          method: POST
+          url: https://api.github.com/repos/SmartBrisco/gitops-infra-pipeline/actions/workflows/terraform.yml/dispatches
+          headers:
+          - name: Authorization
+            value: "${{ 'Bearer ' + secret('githubpat').token }}"
+          - name: Accept
+            value: application/vnd.github+json
+          body: '{"ref":"main","inputs":{"deploy_prod":"no"}}'
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: gitops-infra
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: gitops-infra-warehouse
+    sources:
+      stages:
+      - dev
+  promotionTemplate:
+    spec:
+      steps:
+      - uses: git-clone
+        config:
+          repoURL: https://github.com/SmartBrisco/gitops-infra-pipeline
+          checkout:
+          - branch: main
+            path: ./repo
+      - uses: http
+        config:
+          method: POST
+          url: https://api.github.com/repos/SmartBrisco/gitops-infra-pipeline/actions/workflows/terraform.yml/dispatches
+          headers:
+          - name: Authorization
+            value: "${{ 'Bearer ' + secret('githubpat').token }}"
+          - name: Accept
+            value: application/vnd.github+json
+          body: '{"ref":"main","inputs":{"deploy_prod":"yes"}}'
