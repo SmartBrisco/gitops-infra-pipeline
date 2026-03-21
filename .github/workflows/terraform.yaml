@@ -98,8 +98,8 @@ jobs:
           terraform_version: 1.7.0
           terraform_wrapper: false
 
-      - name: Terraform Init (AWS Prod)
-        run: terraform init -backend=false
+      - name: Terraform Init (AWS Dev)
+        run: terraform init
         working-directory: terraform/aws/dev
 
       - name: Terraform Format Check
