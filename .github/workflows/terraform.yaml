@@ -38,7 +38,7 @@ jobs:
           sudo mv conftest /usr/local/bin/
 
       - name: Terraform Init (AWS Dev)
-        run: terraform init -backend=false
+        run: terraform init -backend=false -reconfigure
         working-directory: terraform/aws/dev
 
       - name: Terraform Plan JSON (AWS Dev)
@@ -99,7 +99,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init (AWS Dev)
-        run: terraform init
+        run: terraform init -reconfigure
         working-directory: terraform/aws/dev
 
       - name: Terraform Format Check
@@ -174,8 +174,6 @@ jobs:
 
   # -----------------------------------------
   # PROD SECURITY GATES
-  # Trivy + OPA against prod config
-  # Only runs if deploy_prod = yes
   # -----------------------------------------
   prod-security-gates:
     name: Prod Security Gates
@@ -215,7 +213,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Terraform Init (AWS Prod)
-        run: terraform init
+        run: terraform init -reconfigure
         working-directory: terraform/aws/prod
 
       - name: Terraform Plan JSON (AWS Prod)
@@ -284,7 +282,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -reconfigure
         working-directory: terraform/aws/prod
 
       - name: Terraform Plan
