@@ -41,14 +41,16 @@ jobs:
         run: terraform init -backend=false -reconfigure
         working-directory: terraform/aws/dev
 
-      - name: Terraform Plan JSON (AWS Dev)
-        run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
+      - name: Terraform Init (AWS Dev)
+        run: |
+          rm -f backend.tf
+          terraform init
         working-directory: terraform/aws/dev
         env:
           AWS_ACCESS_KEY_ID: "mock"
           AWS_SECRET_ACCESS_KEY: "mock"
           AWS_DEFAULT_REGION: "us-east-1"
-
+          
       - name: OPA Policy Test (AWS Dev)
         run: conftest test tfplan.json --policy ../../../policy --namespace terraform.policies
         working-directory: terraform/aws/dev
