@@ -1,0 +1,10 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: gitops-infra-warehouse
+  namespace: gitops-infra
+spec:
+  subscriptions:
+  - git:
+      repoURL: https://github.com/SmartBrisco/gitops-infra-pipeline
+      branch: main

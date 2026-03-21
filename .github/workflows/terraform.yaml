@@ -38,7 +38,7 @@ jobs:
           sudo mv conftest /usr/local/bin/
 
       - name: Terraform Init (AWS Dev)
-        run: terraform init
+        run: terraform init -backend=false
         working-directory: terraform/aws/dev
 
       - name: Terraform Plan JSON (AWS Dev)
@@ -98,8 +98,8 @@ jobs:
           terraform_version: 1.7.0
           terraform_wrapper: false
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Terraform Init (AWS Prod)
+        run: terraform init -backend=false
         working-directory: terraform/aws/dev
 
       - name: Terraform Format Check
