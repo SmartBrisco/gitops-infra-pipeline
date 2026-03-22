@@ -1,24 +1,20 @@
 resource "aws_security_group" "prod" {
-  name        = "${var.project_name}-prod-sg"
+    name        = "${var.project_name}-prod-sg"
   description = "security group for gitops pipeline prod"
   vpc_id      = aws_vpc.main.id
-
   ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.0.0.0/8"]  # internal only
   }
-
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.0.0.0/8"]  # internal only
   }
+}
 
-  tags = {
+resource "aws_instance" "prod" {
+  root_block_device {
+    encrypted = true
+  }
+    tags = {
     Name        = "${var.project_name}-prod-sg"
     managed-by  = "terraform"
     environment = "prod"
@@ -26,6 +22,9 @@ resource "aws_security_group" "prod" {
 }
 
 resource "aws_instance" "prod" {
+  root_block_device {
+    encrypted = true
+  }
   ami                    = "ami-0c02fb55956c7d316"
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.main.id
