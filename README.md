@@ -68,21 +68,21 @@ All Jobs → #infra-audit (always)
 
 **Kargo Promotion Pipeline** manages progressive delivery across environments. The Warehouse watches the main branch for new commits and generates Freight. Promoting Freight to dev triggers the GitHub Actions pipeline. Only after dev succeeds is Freight eligible for prod promotion. Prod promotion triggers a separate workflow with `deploy_prod=yes` which activates the security gates and manual approval flow.
 
-**OPA Policy Gates** run before all cloud deployments using Conftest and custom Rego policies. Unlike Trivy which checks against a vendor-maintained ruleset, OPA enforces organizational policies -- required tags, no open SSH, and approved instance types per cloud.
+**OPA Policy Gates** run before all cloud deployments using Conftest and custom Rego policies. Unlike Trivy which checks against a vendor-maintained ruleset, OPA enforces organizational policies like required tags, no open SSH, and approved instance types per cloud.
 
-**GitHub Actions** orchestrates parallel cloud jobs triggered via Kargo's HTTP promotion step calling the GitHub API. `workflow_dispatch` only -- nothing triggers automatically.
+**GitHub Actions** orchestrates parallel cloud jobs triggered via Kargo's HTTP promotion step calling the GitHub API. `workflow_dispatch` only so nothing triggers automatically.
 
 **OIDC Authentication** eliminates long-lived credentials entirely. GitHub Actions requests a JWT token, AWS validates it originated from this specific repository, and assumes the designated IAM role for temporary scoped access.
 
-**S3 Remote State + DynamoDB Locking** -- dev and prod maintain separate state files in the same S3 bucket (`aws/dev/terraform.tfstate` and `aws/prod/terraform.tfstate`). DynamoDB prevents concurrent pipeline runs from corrupting state.
+**S3 Remote State + DynamoDB Locking**  Dev and prod maintain separate state files in the same S3 bucket (`aws/dev/terraform.tfstate` and `aws/prod/terraform.tfstate`). DynamoDB prevents concurrent pipeline runs from corrupting state.
 
-**Terraform** provisions all infrastructure per cloud and environment. Dev uses relaxed security settings for demo purposes. Prod enforces hardened configuration -- private EKS endpoints, secret encryption, IMDSv2, encrypted volumes, and restricted CIDR ranges. Trivy hard-fails on prod if any HIGH or CRITICAL misconfigurations are detected.
+**Terraform** provisions all infrastructure per cloud and environment. Dev uses relaxed security settings for demo purposes. Prod enforces hardened configuration, private EKS endpoints, secret encryption, IMDSv2, encrypted volumes, and restricted CIDR ranges. Trivy hard-fails on prod if any HIGH or CRITICAL misconfigurations are detected.
 
 **Security Pipeline Gates** run on all three clouds:
 - `terraform fmt` enforces consistent code formatting
 - `terraform validate` catches syntax errors before plan
 - `TFLint` identifies cloud-provider-specific issues
-- `Trivy` detects HIGH and CRITICAL misconfigurations -- soft fail on dev, hard fail on prod
+- `Trivy` detects HIGH and CRITICAL misconfigurations (soft fail on dev, hard fail on prod)
 
 **Multi-Channel Slack Notifications** provide real-time visibility:
 - `#infra-deployments` - successful deployments with resource details
@@ -218,7 +218,9 @@ Create an IAM Role with this trust policy:
 }
 ```
 
-Attach policies: `AmazonEC2FullAccess`, `AmazonVPCFullAccess`, `SecretsManagerReadWrite`, `AmazonEKSFullAccess`, and an inline policy for S3/DynamoDB state access and `iam:CreateServiceLinkedRole`.
+Create four scoped inline policies: eks_access, ec2_vpc, SecretsManager, tfbacknstate.
+See the policy definitions in the repository for the specific actions required.
+No AWS managed FullAccess policies are used.
 
 ### 3. Install Kargo
 ```bash
@@ -234,7 +236,7 @@ helm install kargo \
   --namespace kargo \
   --create-namespace \
   --set api.adminAccount.passwordHash='<hash>' \
-  --set api.adminAccount.tokenSigningKey=changeme \
+  --set api.adminAccount.tokenSigningKey=<yourpassword> \
   --set controller.argocd.integrationEnabled=false \
   --wait
 
@@ -253,8 +255,8 @@ kubectl label secret githubpat -n gitops-infra kargo.akuity.io/cred-type=generic
 ### 4. Configure GitHub Environments
 
 In repository Settings → Environments create:
-- `dev` -- no protection rules
-- `prod` -- required reviewer + 5 minute wait timer
+ `dev` - no protection rules
+ `prod` - required reviewer + 5 minute wait timer
 
 ### 5. Deploy
 ```bash
@@ -318,13 +320,16 @@ kargo promote --project gitops-infra --freight <hash> --stage prod
 ## Design Decisions
 
 **Why Kargo for promotion instead of just GitHub Actions?**
-GitHub Actions can deploy but has no concept of promotion policy -- nothing prevents someone from deploying directly to prod without going through dev. Kargo enforces the promotion chain: freight must pass through dev before it's eligible for prod. It also decouples the trigger mechanism from the deployment pipeline, which is the correct separation of concerns.
+GitHub Actions can deploy but has no concept of promotion policy so nothing prevents someone from deploying directly to prod without going through dev. Kargo enforces the promotion chain: freight must pass through dev before it's eligible for prod. It also decouples the trigger mechanism from the deployment pipeline, which is the correct separation of concerns.
 
 **Why hard-fail Trivy on prod but soft-fail on dev?**
-Dev is intentionally permissive -- open SSH, public IPs, no encryption -- to keep the demo simple and cheap. Prod enforces real security standards. The Trivy gate catches the delta between environments and blocks anything that doesn't meet prod requirements. This is the security gate proving itself: it caught real misconfigurations (public subnet auto-assignment, unencrypted volumes, open security groups) and blocked the deployment until they were fixed.
+Dev is intentionally permissive  (open SSH, public IPs, no encryption)  to keep the demo simple and cheap. Prod enforces real security standards. The Trivy gate catches the delta between environments and blocks anything that doesn't meet prod requirements. This is the security gate proving itself: it caught real misconfigurations (public subnet auto-assignment, unencrypted volumes, open security groups) and blocked the deployment until they were fixed.
+
+**Why scoped inline policies instead of AWS managed FullAccess policies?**
+The pipeline initially used AmazonEC2FullAccess and AmazonVPCFullAccess for simplicity. These were replaced with four scoped inline policies (eks_access, ec2_vpc, SecretsManager, tfbacknstate) that grant only the specific actions this pipeline requires. IAM PassRole and CreateRole are scoped to the `gitops-infra-*` role name prefix. This follows least-privilege and reduces blast radius if the OIDC role is ever compromised.
 
 **Why separate dev and prod Terraform directories instead of workspaces?**
-Workspaces share the same configuration with variable overrides. Separate directories make the security delta between dev and prod explicit and reviewable -- a PR touching `terraform/aws/prod` is clearly a prod change, not an ambiguous workspace switch.
+Workspaces share the same configuration with variable overrides. Separate directories make the security delta between dev and prod explicit and reviewable meaning a PR touching `terraform/aws/prod` is clearly a prod change, not an ambiguous workspace switch.
 
 **Why S3 backend with DynamoDB locking?**
 Without remote state, Terraform has no memory of previous deployments. Two pipeline runs triggered simultaneously would corrupt state. S3 provides shared state, versioning for rollback, and DynamoDB provides distributed locking to prevent concurrent applies.
@@ -350,7 +355,7 @@ Verify the GitHub PAT secret has `workflow` scope and is labeled `kargo.akuity.i
 The OPA job removes `backend.tf` before init and uses mock credentials. If this step fails verify the `rm -f backend.tf` command runs before `terraform init` in the policy-test job.
 
 **Trivy hard-fails on prod**
-This is expected behavior -- prod has `exit-code: 1`. Fix the misconfiguration in `terraform/aws/prod`, push, and re-promote. Common prod findings: `map_public_ip_on_launch = true`, open security group CIDRs, unencrypted volumes, missing IMDSv2.
+This is expected behavior because prod has `exit-code: 1`. Fix the misconfiguration in `terraform/aws/prod`, push, and re-promote. Common prod findings: `map_public_ip_on_launch = true`, open security group CIDRs, unencrypted volumes, missing IMDSv2.
 
 **OIDC authentication fails**
 Verify the trust policy `sub` condition matches your exact GitHub username and repository name. Format must be `repo:USERNAME/REPOSITORY:*`.
@@ -362,7 +367,7 @@ If a pipeline run is cancelled mid-apply, the DynamoDB lock may not release. Man
 AWS default limit is 5 VPCs per region. Without state, previous runs may have left VPCs behind. Delete unused VPCs before redeploying.
 
 **Resources already exist on redeploy**
-Terraform state is in S3 -- if resources exist in state and in AWS they will be updated in place. If resources exist in AWS but not in state (orphaned), delete them manually before applying.
+Terraform state is in S3. If resources exist in state and in AWS they will be updated in place. If resources exist in AWS but not in state (orphaned), delete them manually before applying.
 
 ## Part of a Platform Engineering Portfolio
 
