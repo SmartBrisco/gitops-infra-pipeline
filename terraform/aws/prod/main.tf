@@ -31,6 +31,10 @@ resource "aws_instance" "prod" {
   subnet_id              = aws_subnet.main.id
   vpc_security_group_ids = [aws_security_group.prod.id]
 
+  metadata_options {
+    http_tokens = "required"
+  }
+
   root_block_device {
     encrypted = true
   }

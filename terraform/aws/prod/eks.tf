@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 # --- EKS Cluster IAM Role ---
 resource "aws_iam_role" "eks_cluster" {
   name = "gitops-infra-eks-cluster-prod-role"
@@ -53,8 +55,16 @@ resource "aws_eks_cluster" "main" {
   version  = "1.35"
 
   vpc_config {
-    subnet_ids             = [aws_subnet.private_a.id, aws_subnet.private_b.id]
-    endpoint_public_access = true # Demo only — restrict in production
+    subnet_ids              = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+    endpoint_public_access  = false
+    endpoint_private_access = true
+  }
+
+  encryption_config {
+    resources = ["secrets"]
+    provider {
+      key_arn = "arn:aws:kms:us-east-1:${data.aws_caller_identity.current.account_id}:alias/aws/eks"
+    }
   }
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
