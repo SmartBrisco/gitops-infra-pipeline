@@ -1,21 +1,21 @@
 output "instance_id" {
   description = "EC2 instance ID"
-  value       = aws_instance.dev.id
+  value       = aws_instance.prod.id
 }
 
 output "instance_public_ip" {
   description = "EC2 instance public IP"
-  value       = aws_instance.dev.public_ip
+  value       = aws_instance.prod.public_ip
 }
 
 output "instance_state" {
   description = "EC2 instance state"
-  value       = aws_instance.dev.instance_state
+  value       = aws_instance.prod.instance_state
 }
 
 output "instance_type" {
   description = "EC2 instance type"
-  value       = aws_instance.dev.instance_type
+  value       = aws_instance.prod.instance_type
 }
 
 output "aws_region" {
@@ -25,7 +25,7 @@ output "aws_region" {
 
 output "security_group_id" {
   description = "Security group ID"
-  value       = aws_security_group.dev.id
+  value       = aws_security_group.prod.id
 }
 
 output "eks_cluster_name" {
