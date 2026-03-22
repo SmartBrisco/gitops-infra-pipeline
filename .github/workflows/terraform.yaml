@@ -37,30 +37,27 @@ jobs:
           tar xzf conftest_0.50.0_Linux_x86_64.tar.gz
           sudo mv conftest /usr/local/bin/
 
-      - name: Terraform Init (AWS Dev)
-        run: terraform init -backend=false -reconfigure
-        working-directory: terraform/aws/dev
-
-      - name: Terraform Init (AWS Dev)
+      - name: Terraform Init and Plan (AWS Dev)
         run: |
           rm -f backend.tf
           terraform init
+          terraform plan -out=tfplan.binary
+          terraform show -json tfplan.binary > tfplan.json
         working-directory: terraform/aws/dev
         env:
           AWS_ACCESS_KEY_ID: "mock"
           AWS_SECRET_ACCESS_KEY: "mock"
           AWS_DEFAULT_REGION: "us-east-1"
-          
+
       - name: OPA Policy Test (AWS Dev)
         run: conftest test tfplan.json --policy ../../../policy --namespace terraform.policies
         working-directory: terraform/aws/dev
 
-      - name: Terraform Init (GCP)
-        run: terraform init
-        working-directory: terraform/gcp
-
-      - name: Terraform Plan JSON (GCP)
-        run: terraform plan -out=tfplan.binary && terraform show -json tfplan.binary > tfplan.json
+      - name: Terraform Init and Plan (GCP)
+        run: |
+          terraform init
+          terraform plan -out=tfplan.binary
+          terraform show -json tfplan.binary > tfplan.json
         working-directory: terraform/gcp
 
       - name: OPA Policy Test (GCP)
