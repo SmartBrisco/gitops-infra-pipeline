@@ -21,9 +21,3 @@ variable "availability_zone" {
   type        = string
   default     = "us-east-1a"
 }
-
-variable "project_name" {
-  description = "Project name for resource tagging"
-  type        = string
-  default     = "gitops-infra-pipeline-prod"
-}
