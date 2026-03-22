@@ -50,7 +50,7 @@ resource "aws_iam_role_policy_attachment" "eks_ecr_read" {
 resource "aws_eks_cluster" "main" {
   name     = "gitops-infra-eks"
   role_arn = aws_iam_role.eks_cluster.arn
-  version  = "1.31"
+  version  = "1.35"
 
   vpc_config {
     subnet_ids             = [aws_subnet.private_a.id, aws_subnet.private_b.id]
